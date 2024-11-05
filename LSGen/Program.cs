@@ -1,4 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
@@ -20,10 +21,8 @@ List<double> bendPos = new ();
 
 StreamWriter bendCoordSW = new ("part230BendCoord.txt");
 
-using (StreamWriter sw = new StreamWriter ("part230.LS")) {
-
-
-   using (StreamReader sr = new StreamReader ("C:\\Users\\rajakumarra\\Downloads\\part230.rbc")) {
+using (StreamWriter sw = new ("part230.LS")) {
+   using (StreamReader sr = new ("C:\\Users\\rajakumarra\\Downloads\\part230.rbc")) {
       for (int i = 1; ; i++) {
          string line = sr.ReadLine ();
          if (line == null) break;
@@ -66,9 +65,6 @@ using (StreamWriter sw = new StreamWriter ("part230.LS")) {
                }
                break;
          }
-
-
-
       }
    }
 
@@ -85,14 +81,25 @@ using (StreamWriter sw = new StreamWriter ("part230.LS")) {
       sw.WriteLine ("};");
    }
 }
-
-using (StreamWriter bendPosSW = new ("part230BendPos.txt")) {
-   for (int c = 0; c < bendPosistions.Count; c++) {
-      var printBendPos = bendPosistions[c];
-      for (int p = 1; p <= 6; p++)
-         bendPosSW.Write ($"{printBendPos[p - 1]} ");
-      bendPosSW.WriteLine ();
-   }
-}
-
 bendCoordSW.Close ();
+
+// BendSub.LS
+StreamReader bendSubSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ($"LSGen.HCData.BendSubHC.txt")!);
+StreamWriter bendSubSW = new ("BendSub.LS");
+for (; ; ) {
+   var line = bendSubSR.ReadLine ();
+   if (line == null) break;
+   bendSubSW.WriteLine (line);
+}
+bendSubSR.Close ();
+for (int c = 1; c <= bendPosistions.Count; c++) {
+   var bP = bendPosistions[c - 1];
+   bendSubSW.WriteLine ($"  P[{c}] {{");
+   bendSubSW.WriteLine ("   GP1:");
+   bendSubSW.WriteLine ("    UF : 2, UT : 2,");
+   for (int p = 1; p <= 6; p++)  // Iteration for printing 6 joints
+      bendSubSW.Write (p != 3 ? $"   J{p} = {bP[p - 1]}  deg," : $"   J{p} = {bP[p - 1]}  deg,\n");
+   bendSubSW.WriteLine ();
+   bendSubSW.WriteLine ("   };");
+}
+bendSubSW.Close ();
