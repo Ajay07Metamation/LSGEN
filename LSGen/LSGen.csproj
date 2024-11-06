@@ -9,10 +9,14 @@
 
   <ItemGroup>
     <None Remove="HCData\BendSubHC.txt" />
+    <None Remove="HCData\RoboHC_WOSW.txt" />
+    <None Remove="HCData\RoboHC_WSW.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="HCData\BendSubHC.txt" />
+    <EmbeddedResource Include="HCData\RoboHC_WOSW.txt" />
+    <EmbeddedResource Include="HCData\RoboHC_WSW.txt" />
   </ItemGroup>
 
 </Project>

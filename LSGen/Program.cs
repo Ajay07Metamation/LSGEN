@@ -1,84 +1,87 @@
-﻿// See https://aka.ms/new-console-template for more information
-using System.Reflection;
-using System.Runtime.InteropServices;
+﻿using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 
 //if (args.Length == 0) return;
 //Console.WriteLine (args[0]);
 //Console.ReadKey ();
 
-bool isRequired = false;
-string label;
+string label = "";
 int pCount = 0;
-List<List<double>> iniPositions = new ();
-List<double> pos = new ();
-bool pointRead = false;
-string point = "";
+StringBuilder pointCollection = new ();
+StringBuilder bendSubPoints = new ();
 List<string> labels = new ();
 bool isBendPos = false;
-List<List<double>> bendPosistions = new ();
-List<double> bendPos = new ();
-
+Regex pattern = new (@"G01 J1\s(?<J1>[-+]?\d*\.?\d+) J2\s(?<J2>[-+]?\d*\.?\d+) J3\s(?<J3>[-+]?\d*\.?\d+) J4\s(?<J4>[-+]?\d*\.?\d+) J5\s(?<J5>[-+]?\d*\.?\d+) J6\s(?<J6>[-+]?\d*\.?\d+).*", RegexOptions.Compiled);
+var wswSr = new StreamReader (Assembly.GetExecutingAssembly ().GetManifestResourceStream ($"LSGen.HCData.RoboHC_WSW.txt")!);
+var woswSr = new StreamReader (Assembly.GetExecutingAssembly ().GetManifestResourceStream ($"LSGen.HCData.RoboHC_WOSW.txt")!);
 StreamWriter bendCoordSW = new ("part230BendCoord.txt");
 
 using (StreamWriter sw = new ("part230.LS")) {
-   using (StreamReader sr = new ("C:\\Users\\rajakumarra\\Downloads\\part230.rbc")) {
-      for (int i = 1; ; i++) {
-         string line = sr.ReadLine ();
-         if (line == null) break;
-         if (line == "") continue;
+   using (StreamReader sr = new ("C:\\Users\\nehrujiaj\\Downloads\\BEND_WOSW.rbc")) {
+      // Writing header part of the LS file.
+      string curLine = woswSr.ReadLine () ?? "";
+      while (curLine != "" && curLine.StartsWith ('[')) {
+         for (; ; ) {
+            var header = woswSr.ReadLine () ?? "";
+            if (header.StartsWith ('[')) break;
+            sw.WriteLine (header);
+         }
+         break;
+      }
+
+      int c = 0;
+      for (int i = 0; ; i++) {
+         string crLine = sr.ReadLine ();
+         if (crLine == null) break;
+         if (crLine == "") continue;
          switch (i) {
-            case < 9: break;
+            case < 8: break;
             default:
-               if (line == "Bend 0") { isBendPos = true; break; }
-               pos = new (); bendPos = new ();
-               if (isBendPos) {
-                  if (line[0] == 'G') {
-                     for (int k = 0; k < line.Length; k++) {
-                        if (line[k] == 'J' && Char.IsDigit (line[k + 1])) { pointRead = true; k += 3; }
-                        if (line[k] == ' ') { pointRead = false; if (Double.TryParse (point, out double parsedPt)) bendPos.Add (parsedPt); point = ""; }
-                        if (pointRead) point += line[k];
-                     }
-                     if (bendPos.Count != 0) bendPosistions.Add (bendPos);
-                  } else
-                     bendCoordSW.WriteLine (line);
-                  continue;
-               }
-
-
-               if (line[0] == '(') {
-                  isRequired = true; // True to collect points from next line
-                  pCount++;
-                  label = line.Remove (0, 1).Remove (line.Length - 2);
+               if (crLine == "Bend 0") { isBendPos = true; pCount = 0; break; }
+               if (crLine.StartsWith ('(')) {
+                  label = crLine.Remove (0, 1).Remove (crLine.Length - 2);
                   labels.Add (label);
-                  sw.WriteLine ($"J P[{pCount}: J_{label}] 100% FINE");
-               } else {
-                  if (isRequired) {
-                     for (int k = 0; k < line.Length; k++) {
-                        var ch = line[k];
-                        if (line[k] == 'J' && Char.IsDigit (line[k + 1])) { pointRead = true; k += 3; }
-                        if (line[k] == ' ') { pointRead = false; if (Double.TryParse (point, out double parsedPt)) pos.Add (parsedPt); point = ""; }
-                        if (pointRead) point += line[k];
-                     }
+                  pCount++;
+                  for (; ; ) {
+                     // Writes the default code of LS file.
+                     var nxtLine = woswSr.ReadLine () ?? "";
+                     if (nxtLine.StartsWith ('[')) break;
+                     if (nxtLine == "") continue;
+                     sw.WriteLine (nxtLine);
+                     c++;
                   }
-                  if (pos.Count != 0) { isRequired = false; iniPositions.Add (pos); }
+                  sw.WriteLine ($"  {++c}: J P[{pCount}: J_{label}] 100% FINE");
                }
+               if (crLine.StartsWith ("G01")) {
+                  Match match = pattern.Match (crLine);
+                  if (match.Success) {
+                     // Collects points if pattern matches.
+                     double[] points = {    double.Parse(match.Groups["J1"].Value),
+                                            double.Parse(match.Groups["J2"].Value),
+                                            double.Parse(match.Groups["J3"].Value),
+                                            double.Parse(match.Groups["J4"].Value),
+                                            double.Parse(match.Groups["J5"].Value),
+                                            double.Parse(match.Groups["J6"].Value)
+                        };
+                     if (!isBendPos) {
+                        // Collects the points for LS file
+                        pointCollection.Append ($"P[{pCount}:{label}]{{\nGP1:\nUF : {(pCount < 9 ? 1 : pCount < 20 ? 2 : 3)}, UT : 2\n" +
+                                                $"J1 = {points[0]} deg, J2 = {points[1]} deg, J3 = {points[2]} deg,\n" +
+                                                $"J4 = {points[3]} deg, J5 = {points[4]} deg, J6 = {points[5]} deg\n}};\n");
+                     } else {
+                        // Collects the points for BendSub LS file
+                        bendSubPoints.Append ($"P[{++pCount}]{{\nGP1:\nUF : {(pCount < 9 ? 1 : pCount < 20 ? 2 : 3)}, UT : 2\n" +
+                                             $"J1 = {points[0]} deg, J2 = {points[1]} deg, J3 = {points[2]} deg,\n" +
+                                             $"J4 = {points[3]} deg, J5 = {points[4]} deg, J6 = {points[5]} deg\n}};\n");
+                     }
+
+                  }
+               } else if (isBendPos) bendCoordSW.WriteLine (crLine);
                break;
          }
       }
-   }
-
-   sw.WriteLine ("\n");
-   for (int c = 0; c < labels.Count; c++) { // labels iteration
-      var printPos = iniPositions[c];
-      sw.WriteLine ($"P[{c + 1}:\"J_{labels[c]}\"]"); // Need to insert a curly bracket
-      sw.WriteLine (" GP1:");
-      sw.Write (c + 1 <= 8 ? "  UF = 1," : c + 1 >= 17 ? "  UF = 3," : "  UF = 2,");
-      sw.WriteLine (" UT = 2"); // Input for UF and UT
-      for (int p = 1; p <= 6; p++)  // Iteration for printing 6 joints
-         sw.Write (p != 3 ? $"  J{p} = {printPos[p - 1]}  deg," : $"  J{p} = {printPos[p - 1]}  deg\n");
-      sw.WriteLine ();
-      sw.WriteLine ("};");
+      sw.WriteLine (pointCollection);
    }
 }
 bendCoordSW.Close ();
@@ -92,14 +95,5 @@ for (; ; ) {
    bendSubSW.WriteLine (line);
 }
 bendSubSR.Close ();
-for (int c = 1; c <= bendPosistions.Count; c++) {
-   var bP = bendPosistions[c - 1];
-   bendSubSW.WriteLine ($"  P[{c}] {{");
-   bendSubSW.WriteLine ("   GP1:");
-   bendSubSW.WriteLine ("    UF : 2, UT : 2,");
-   for (int p = 1; p <= 6; p++)  // Iteration for printing 6 joints
-      bendSubSW.Write (p != 3 ? $"   J{p} = {bP[p - 1]}  deg," : $"   J{p} = {bP[p - 1]}  deg,\n");
-   bendSubSW.WriteLine ();
-   bendSubSW.WriteLine ("   };");
-}
+bendSubSW.WriteLine (bendSubPoints);
 bendSubSW.Close ();
