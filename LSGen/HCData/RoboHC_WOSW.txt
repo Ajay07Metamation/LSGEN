@@ -1,5 +1,4 @@
 ﻿[0]
-/PROG  AROBO
 /ATTR
 OWNER		= MNEDITOR;
 COMMENT		= "14:48 10/24";
@@ -40,115 +39,116 @@ LINE_TRACK;
   9:  R[16]=800;
 [2]
 [3]
-   12:   //WAIT (DI[13:GRIPPER_OPEN_FB])    ;
+ 12:   //WAIT (DI[13:GRIPPER_OPEN_FB])    ;
 [4]
 [5]
 [6]
-   16:  DO[500:GRIP_OPEN]=OFF;
-   17:  DO[499:GRIP_CLOSE]=ON;
-   18:  WAIT 0.25(sec);
-   19:  //WAIT (DI[14:GRIPPER_CLOSE_FB])    ;
+ 16:  DO[500:GRIP_OPEN]=OFF;
+ 17:  DO[499:GRIP_CLOSE]=ON;
+ 18:  WAIT 0.25(sec);
+ 19:  //WAIT (DI[14:GRIPPER_CLOSE_FB])    ;
 [7]
 [8]
 [9]
-   23:  UFRAME_NUM=2 ;
+ 23:  UFRAME_NUM=2 ;
 [10]
-   25:  R[10]=1    ;
-   26:  LBL[1] ;
-   27:  SELECT R[10]=1,JMP LBL[2] ;
-   28:         =2,JMP LBL[3] ;
-   29:         =3,JMP LBL[4] ;
-   30:         =4,JMP LBL[5] ;
-   31:         =5,JMP LBL[6] ;
-   32:         =6,JMP LBL[7] ;
-   33:         =7,JMP LBL[8] ;
-   34:         ELSE,JMP LBL[1] ;
-   35:   ;
-   36:  LBL[2:INIT] ;
-   37:  IF (DO[3:MOVE_TO_UDP] OR DI[3:FIRST_BEND_ACTIVE] AND !DI[9:UDP_REACHED]) THEN ;
-   38:  R[10]=2    ;
-   39:   ;
-   40:  ENDIF ;
-   41:  IF (DI[1:NC_START] AND DI[11:PRESS_OK]) THEN ;
-   42:  R[10]=3    ;
-   43:  JMP LBL[1] ;
-   44:  ELSE ;
-   45:  JMP LBL[1] ;
-   46:  ENDIF ;
-   47:   ;
-   48:  LBL[3:RAMUP] ;
-   49:  DO[3:MOVE_TO_UDP]=ON ;
-   50:  WAIT (DI[9:UDP_REACHED])    ;
-   51:  DO[3:MOVE_TO_UDP]=OFF ;
-   52:  R[10]=3    ;
-   53:  JMP LBL[1] ;
-   54:   ;
-   55:  LBL[4:FASTCLOSING] ;
-   56:  IF (DI[3:FIRST_BEND_ACTIVE] OR DI[4:LAST_BEND_ACTIVE] AND DI[9:UDP_REACHED]) THEN ;
-   57:  DO[4:STEP_CHANGE]=ON ;
-   58:  WAIT (DI[2:BACKGAUGE_IN_POSITION])    ;
-   59:  //DO[4:STEP_CHANGE]=OFF ;
-   60:  ELSE ;
-   61:  JMP LBL[1] ;
-   62:  ENDIF ;
-   63:  DO[8:ROBOUNSAFE]=ON ;
-   64:  LBL[11] ;
-   65:  IF (!DI[5:RAM_MOVING]) THEN ;
+ 25:  R[10]=1    ;
+ 26:  LBL[1] ;
+ 27:  SELECT R[10]=1,JMP LBL[2] ;
+ 28:         =2,JMP LBL[3] ;
+ 29:         =3,JMP LBL[4] ;
+ 30:         =4,JMP LBL[5] ;
+ 31:         =5,JMP LBL[6] ;
+ 32:         =6,JMP LBL[7] ;
+ 33:         =7,JMP LBL[8] ;
+ 34:         ELSE,JMP LBL[1] ;
+ 35:   ;
+ 36:  LBL[2:INIT] ;
+ 37:  IF (DO[3:MOVE_TO_UDP] OR DI[3:FIRST_BEND_ACTIVE] AND !DI[9:UDP_REACHED]) THEN ;
+ 38:  R[10]=2    ;
+ 39:   ;
+ 40:  ENDIF ;
+ 41:  IF (DI[1:NC_START] AND DI[11:PRESS_OK]) THEN ;
+ 42:  R[10]=3    ;
+ 43:  JMP LBL[1] ;
+ 44:  ELSE ;
+ 45:  JMP LBL[1] ;
+ 46:  ENDIF ;
+ 47:   ;
+ 48:  LBL[3:RAMUP] ;
+ 49:  DO[3:MOVE_TO_UDP]=ON ;
+ 50:  WAIT (DI[9:UDP_REACHED])    ;
+ 51:  DO[3:MOVE_TO_UDP]=OFF ;
+ 52:  R[10]=3    ;
+ 53:  JMP LBL[1] ;
+ 54:   ;
+ 55:  LBL[4:FASTCLOSING] ;
+ 56:  IF (DI[3:FIRST_BEND_ACTIVE] OR DI[4:LAST_BEND_ACTIVE] AND DI[9:UDP_REACHED]) THEN ;
+ 57:  DO[4:STEP_CHANGE]=ON ;
+ 58:  WAIT (DI[2:BACKGAUGE_IN_POSITION])    ;
+ 59:  //DO[4:STEP_CHANGE]=OFF ;
+ 60:  ELSE ;
+ 61:  JMP LBL[1] ;
+ 62:  ENDIF ;
+ 63:  DO[8:ROBOUNSAFE]=ON ;
+ 64:  LBL[11] ;
+ 65:  IF (!DI[5:RAM_MOVING]) THEN ;
 [11]
 [12]
 [13]
 [14]
 [15]
-   71:  PR[60]=P[14];
-   72:  CALL Bg_al;
-   73:  ELSE ;
-   74:  WAIT (!DI[5:RAM_MOVING])    ;
-   75:  JMP LBL[11] ;
-   76:  ENDIF ;
-   77:  WAIT (DI[12:FPDOWN])    ;
-   78:  DO[8:ROBOUNSAFE]=OFF ;
-   79:  DO[6:ENABLE_RAM_DOWN]=ON ;
-   80:  WAIT (DI[10:BELOW_MUTE_POINT])    ;
-   81:  JMP LBL[5] ;
-   82:   ;
-   83:  LBL[5:CLAMPING] ;
-   84:  DO[1:CLAMPING_POINT_BIT]=ON ;
-   85:  WAIT (DI[6:CLAMPING_POINT])    ;
+ 71:  PR[62]=P[12:C_Part Insert2]    ;
+ 72:  PR[60:LPOS_MUT]=LPOS    ;
+ 73:   ;
+ 74:  ELSE ;
+ 75:  WAIT (!DI[5:RAM_MOVING])    ;
+ 76:  JMP LBL[11] ;
+ 77:  ENDIF ;
+ 78:  WAIT (DI[12:FPDOWN])    ;
+ 79:  DO[8:ROBOUNSAFE]=OFF ;
+ 80:  DO[6:ENABLE_RAM_DOWN]=ON ;
+ 81:  WAIT (DI[10:BELOW_MUTE_POINT])    ;
+ 82:  JMP LBL[5] ;
+ 83:  CALL BG_AL_1    ;
+ 84:  LBL[5:CLAMPING] ;
+ 85:  DO[1:CLAMPING_POINT_BIT]=ON ;
+ 86:  WAIT (DI[6:CLAMPING_POINT])    ;
 [16]
 [17]
-   88:  JMP LBL[6] ;
-   89:   ;
-   90:  LBL[6:MOVETOLDP] ;
-   91:  DO[6:ENABLE_RAM_DOWN]=OFF ;
-   92:  CALL BEND_sub ;
+ 89:  JMP LBL[6] ;
+ 90:   ;
+ 91:  LBL[6:MOVETOLDP] ;
+ 92:  DO[6:ENABLE_RAM_DOWN]=OFF ;
+ 93:  CALL BEND_sub ;
 [18]
-   94:  WAIT (DI[8:EoD_REACHED])    ;
-   95:  DO[2:MOVE_TO_LDP]=OFF ;
+ 95:  WAIT (DI[8:EoD_REACHED])    ;
+ 96:  DO[2:MOVE_TO_LDP]=OFF ;
 [19]
 [20]
-   98:  IF (DI[4:LAST_BEND_ACTIVE]) THEN ;
-   99:  JMP LBL[8] ;
-   100:  ELSE ;
-   101:  JMP LBL[7] ;
-   102:  ENDIF ;
-   103:   ;
-   104:  LBL[7:NEXTBEND] ;
-   105:  DO[4:STEP_CHANGE]=OFF ;
-   106:  DO[3:MOVE_TO_UDP]=ON ;
-   107:  WAIT (DI[9:UDP_REACHED])    ;
-   108:  UFRAME_NUM=3 ;
+ 99:  IF (DI[4:LAST_BEND_ACTIVE]) THEN ;
+ 100:  JMP LBL[8] ;
+ 101:  ELSE ;
+ 102:  JMP LBL[7] ;
+ 103:  ENDIF ;
+ 104:   ;
+ 105:  LBL[7:NEXTBEND] ;
+ 106:  DO[4:STEP_CHANGE]=OFF ;
+ 107:  DO[3:MOVE_TO_UDP]=ON ;
+ 108:  WAIT (DI[9:UDP_REACHED])    ;
+ 109:  UFRAME_NUM=3 ;
 [21]
-   110:  JMP LBL[3] ;
-   111:   ;
-   112:  LBL[8:TODEPOSIT] ;
-   113:  DO[4:STEP_CHANGE]=OFF ;
-   114:  DO[3:MOVE_TO_UDP]=ON ;
-   115:  WAIT (DI[9:UDP_REACHED])    ;
+ 111:  JMP LBL[3] ;
+ 112:   ;
+ 113:  LBL[8:TODEPOSIT] ;
+ 114:  DO[4:STEP_CHANGE]=OFF ;
+ 115:  DO[3:MOVE_TO_UDP]=ON ;
+ 116:  WAIT (DI[9:UDP_REACHED])    ;
 [22]
-   117:  DO[500:GRIP_OPEN]=ON;
-   118:  DO[499:GRIP_CLOSE]=OFF;
-   119:  WAIT 0.25(sec);
-   120:  //WAIT (DI[13:GRIPPER_OPEN_FB])    ;
+ 118:  DO[500:GRIP_OPEN]=ON;
+ 119:  DO[499:GRIP_CLOSE]=OFF;
+ 120:  WAIT 0.25(sec);
+ 121:  //WAIT (DI[13:GRIPPER_OPEN_FB])    ;
 [23]
 [24]
 [25]
@@ -156,15 +156,15 @@ LINE_TRACK;
 [27]
 [28]
 [29]
-   128:  R[10]=1    ;
-   129:  JMP LBL[9] ;
-   130:  LBL[9] ;
-   131:  DO[1:CLAMPING_POINT_BIT]=OFF ;
-   132:  DO[2:MOVE_TO_LDP]=OFF ;
-   133:  DO[3:MOVE_TO_UDP]=OFF ;
-   134:  DO[4:STEP_CHANGE]=OFF ;
-   135:  DO[6:ENABLE_RAM_DOWN]=OFF ;
-   136:  DO[5:START_PROGRAM]=OFF ;
+ 129:  R[10]=1    ;
+ 130:  JMP LBL[9] ;
+ 131:  LBL[9] ;
+ 132:  DO[1:CLAMPING_POINT_BIT]=OFF ;
+ 133:  DO[2:MOVE_TO_LDP]=OFF ;
+ 134:  DO[3:MOVE_TO_UDP]=OFF ;
+ 135:  DO[4:STEP_CHANGE]=OFF ;
+ 136:  DO[6:ENABLE_RAM_DOWN]=OFF ;
+ 137:  DO[5:START_PROGRAM]=OFF ;
 [30]
 [31]
 [32]
@@ -173,5 +173,3 @@ LINE_TRACK;
 [35]
 [36]
 [37]
-[E]
-   /POS
