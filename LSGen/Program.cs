@@ -1,105 +1,105 @@
-﻿// See https://aka.ms/new-console-template for more information
-using System.Reflection;
-using System.Runtime.InteropServices;
+﻿using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 
-//if (args.Length == 0) return;
-//Console.WriteLine (args[0]);
+//Console.WriteLine (args.Length);
 //Console.ReadKey ();
+//if (args.Length == 0) return;
+RobotPostProcessor rpp = new ("C:\\Users\\nehrujiaj\\Downloads\\BEND.rbc");
+rpp.CreateOutFiles ();
+Console.WriteLine ("File generated successfully :)");
+Console.ReadKey ();
 
-bool isRequired = false;
-string label;
-int pCount = 0;
-List<List<double>> iniPositions = new ();
-List<double> pos = new ();
-bool pointRead = false;
-string point = "";
-List<string> labels = new ();
-bool isBendPos = false;
-List<List<double>> bendPosistions = new ();
-List<double> bendPos = new ();
+class RobotPostProcessor {
+   public RobotPostProcessor (string filePath) { mFilePath = filePath; mFileName = Path.GetFileNameWithoutExtension (filePath); }
+   public void CreateOutFiles () {
+      string label = "";
+      int pCount = 0;
+      StringBuilder pointCollection = new (), bendSubPoints = new ();
+      List<string> labels = new ();
+      bool isBendPos = false;
+      Regex pattern = new (@"G01 J1\s(?<J1>[-+]?\d*\.?\d+) J2\s(?<J2>[-+]?\d*\.?\d+) J3\s(?<J3>[-+]?\d*\.?\d+) J4\s(?<J4>[-+]?\d*\.?\d+) J5\s(?<J5>[-+]?\d*\.?\d+) J6\s(?<J6>[-+]?\d*\.?\d+).*", RegexOptions.Compiled);
 
-StreamWriter bendCoordSW = new ("part230BendCoord.txt");
+      using StreamReader refSr = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.RoboHC_WOSW.txt")!);
+      using StreamWriter bendCoordSW = new ($"{mFileName}BendCoord.txt");
+      using StreamWriter sw = new ($"{mFileName}.LS");
+      using StreamReader sr = new (mFilePath);
 
-using (StreamWriter sw = new ("part230.LS")) {
-   using (StreamReader sr = new ("C:\\Users\\rajakumarra\\Downloads\\part230.rbc")) {
-      for (int i = 1; ; i++) {
-         string line = sr.ReadLine ();
-         if (line == null) break;
-         if (line == "") continue;
-         switch (i) {
-            case < 9: break;
-            default:
-               if (line == "Bend 0") { isBendPos = true; break; }
-               pos = new (); bendPos = new ();
-               if (isBendPos) {
-                  if (line[0] == 'G') {
-                     for (int k = 0; k < line.Length; k++) {
-                        if (line[k] == 'J' && Char.IsDigit (line[k + 1])) { pointRead = true; k += 3; }
-                        if (line[k] == ' ') { pointRead = false; if (Double.TryParse (point, out double parsedPt)) bendPos.Add (parsedPt); point = ""; }
-                        if (pointRead) point += line[k];
-                     }
-                     if (bendPos.Count != 0) bendPosistions.Add (bendPos);
-                  } else
-                     bendCoordSW.WriteLine (line);
-                  continue;
-               }
+      // Write Header to LS file
+      sw.WriteLine ($"/ PROG  {mFileName}");
+      for (string? header = refSr.ReadLine (); header != null && !header.StartsWith ("[1]"); header = refSr.ReadLine ()) {
+         if (header == "" || header.StartsWith ("[0]")) continue;
+         if (header.StartsWith ("COMMENT") || header.StartsWith ("CREATE") || header.StartsWith ("MODIFIED")) {
+            var isFileExist = File.Exists (mFilePath);
+            var currentTime = DateTime.Now;
+            var updatedHeader = header switch {
+               var h when h.StartsWith ("COMMENT") => $"COMMENT\t\t= \"{currentTime:HH:mm MM/dd}\";",
+               var h when h.StartsWith ("MODIFIED") => $"MODIFIED\t= DATE {currentTime:yy-MM-dd} TIME {currentTime:HH:mm:ss};",
+               _ => null
+            };
 
-
-               if (line[0] == '(') {
-                  isRequired = true; // True to collect points from next line
-                  pCount++;
-                  label = line.Remove (0, 1).Remove (line.Length - 2);
-                  labels.Add (label);
-                  sw.WriteLine ($"J P[{pCount}: J_{label}] 100% FINE");
-               } else {
-                  if (isRequired) {
-                     for (int k = 0; k < line.Length; k++) {
-                        var ch = line[k];
-                        if (line[k] == 'J' && Char.IsDigit (line[k + 1])) { pointRead = true; k += 3; }
-                        if (line[k] == ' ') { pointRead = false; if (Double.TryParse (point, out double parsedPt)) pos.Add (parsedPt); point = ""; }
-                        if (pointRead) point += line[k];
-                     }
-                  }
-                  if (pos.Count != 0) { isRequired = false; iniPositions.Add (pos); }
-               }
-               break;
+            if (!string.IsNullOrEmpty (updatedHeader)) { sw.WriteLine (updatedHeader); continue; }
          }
+         sw.WriteLine (header);
+      }
+
+      // Write to LS and BendSub LS files
+      int c = 1;
+      for (int i = 0; ; i++) {
+         string? crLine = sr.ReadLine ();
+         if (crLine == null) break;
+         if (crLine == "" || i < 8) continue;
+         if (crLine == "Bend 0") { isBendPos = true; pCount = 0; continue; }
+         if (crLine.StartsWith ("(")) {
+            pCount++;
+            if (pCount == 1) label = "Init";
+            else label = crLine[1..^1];
+            labels.Add (label);
+            string? line = refSr.ReadLine ();
+            while (!string.IsNullOrEmpty (line) && !line!.StartsWith ($"[{pCount + 1}]")) {
+               sw.WriteLine (line);
+               line = refSr.ReadLine () ?? "";
+               c++;
+            }
+         } else if (crLine.StartsWith ("G01") && pattern.Match (crLine) is { Success: true } match) {
+            string[] points = new[] { "J1", "J2", "J3", "J4", "J5", "J6" }
+                                    .Select (j => double.Parse (match.Groups[j].Value).ToString ("F2"))
+                                    .ToArray ();
+            if (isBendPos) bendSubPoints.Append ($"P[{++pCount}]{{\nGP1:\nUF : {(pCount < 9 ? 1 : pCount < 20 ? 2 : 3)}, UT : 2,\n" +
+                          $"J1 = {points[0]} deg, J2 = {points[1]} deg, J3 = {points[2]} deg,\n" +
+                          $"J4 = {points[3]} deg, J5 = {points[4]} deg, J6 = {points[5]} deg\n}};\n");
+            else {
+               var motion = crLine.Contains ("Forward") ? 'J' : 'L';
+               sw.WriteLine ($" {c++}: {motion} P[{pCount}: J_{label}] 100% FINE;");
+               pointCollection.Append ($"P[{pCount}:\"{labels[pCount - 1]}\"]{{\nGP1:\nUF : {(pCount < 9 ? 1 : pCount < 20 ? 2 : 3)}, UT : 2,\n" +
+                         $"J1 = {points[0]} deg, J2 = {points[1]} deg, J3 = {points[2]} deg,\n" +
+                         $"J4 = {points[3]} deg, J5 = {points[4]} deg, J6 = {points[5]} deg\n}};\n");
+            }
+         }
+         if (!crLine.StartsWith ("G01") && isBendPos) { bendCoordSW.WriteLine (crLine); }
+      }
+      sw.WriteLine ("/POS\n" + pointCollection + "\n/END");
+
+      using (StreamWriter bendSubSW = new ($"{mFileName}BendSub.LS")) {
+         using StreamReader bendSubSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.BendSubHC.txt")!);
+         for (string? line; (line = bendSubSR.ReadLine ()) != null;) {
+            if (line.StartsWith ("COMMENT") || line.StartsWith ("CREATE") || line.StartsWith ("MODIFIED")) {
+               var isFileExist = File.Exists (mFilePath);
+               var currentTime = DateTime.Now;
+               var updatedLine = line switch {
+                  var l when l.StartsWith ("COMMENT") => $"COMMENT\t\t= \"{currentTime:HH:mm MM/dd}\";",
+                  //var h when h.StartsWith ("CREATE") && !isFileExist => $"CREATE\t\t= DATE {currentTime:yy-MM-dd} TIME {currentTime:HH:mm:ss};",
+                  var l when l.StartsWith ("MODIFIED") => $"MODIFIED\t= DATE {currentTime:yy-MM-dd} TIME {currentTime:HH:mm:ss};",
+                  _ => null
+               };
+
+               if (!string.IsNullOrEmpty (updatedLine)) { bendSubSW.WriteLine (updatedLine); continue; }
+            }
+            bendSubSW.WriteLine (line);
+         }
+         bendSubSW.Write (bendSubPoints);
       }
    }
 
-   sw.WriteLine ("\n");
-   for (int c = 0; c < labels.Count; c++) { // labels iteration
-      var printPos = iniPositions[c];
-      sw.WriteLine ($"P[{c + 1}:\"J_{labels[c]}\"]"); // Need to insert a curly bracket
-      sw.WriteLine (" GP1:");
-      sw.Write (c + 1 <= 8 ? "  UF = 1," : c + 1 >= 17 ? "  UF = 3," : "  UF = 2,");
-      sw.WriteLine (" UT = 2"); // Input for UF and UT
-      for (int p = 1; p <= 6; p++)  // Iteration for printing 6 joints
-         sw.Write (p != 3 ? $"  J{p} = {printPos[p - 1]}  deg," : $"  J{p} = {printPos[p - 1]}  deg\n");
-      sw.WriteLine ();
-      sw.WriteLine ("};");
-   }
+   string mFileName, mFilePath;
 }
-bendCoordSW.Close ();
-
-// BendSub.LS
-StreamReader bendSubSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ($"LSGen.HCData.BendSubHC.txt")!);
-StreamWriter bendSubSW = new ("BendSub.LS");
-for (; ; ) {
-   var line = bendSubSR.ReadLine ();
-   if (line == null) break;
-   bendSubSW.WriteLine (line);
-}
-bendSubSR.Close ();
-for (int c = 1; c <= bendPosistions.Count; c++) {
-   var bP = bendPosistions[c - 1];
-   bendSubSW.WriteLine ($"  P[{c}] {{");
-   bendSubSW.WriteLine ("   GP1:");
-   bendSubSW.WriteLine ("    UF : 2, UT : 2,");
-   for (int p = 1; p <= 6; p++)  // Iteration for printing 6 joints
-      bendSubSW.Write (p != 3 ? $"   J{p} = {bP[p - 1]}  deg," : $"   J{p} = {bP[p - 1]}  deg,\n");
-   bendSubSW.WriteLine ();
-   bendSubSW.WriteLine ("   };");
-}
-bendSubSW.Close ();
