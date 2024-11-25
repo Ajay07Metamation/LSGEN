@@ -1,13 +1,18 @@
-﻿using System.Reflection;
+﻿using FluentFTP;
+using static System.Console;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Net;
 
-if (args.Length == 0) { Console.WriteLine ("No input!"); Console.ReadKey (); return; }
+if (args.Length == 0) { WriteLine ("No input!"); ReadKey (); return; }
 RobotPostProcessor rpp = new (args[0]);
 rpp.GenOutFiles ();
 rpp.GenBendSub ();
-Console.WriteLine ("File generated successfully.");
-Console.ReadKey ();
+WriteLine ("File generated successfully.");
+rpp.TransferFiles ();
+
+ReadKey ();
 
 #region class RobotPostProcessor ----------------------------------------------------------------
 partial class RobotPostProcessor {
@@ -26,23 +31,26 @@ partial class RobotPostProcessor {
       bool isBendPos = false;
       Regex pattern = MyRegex ();
 
+      using StreamReader hrSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.HeaderHC.txt")!);
       using StreamReader refSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.RoboHC_WOSW.txt")!); // HardCode Reader
-      using StreamWriter bendCoordSW = new ($"{mFileName}BendCoord.txt"); // Collection of ram offsets. To be sent to RA.
-      using StreamWriter lsSW = new ($"{mFileName}.LS"); // Main LS output
+      using StreamWriter bendCoordSW = new ($"{mFileName}RamPoints.txt"); // Collection of ram offsets. To be sent to RA.
       using StreamReader rbcSR = new (mFilePath);
+      var isFileExist = File.Exists ($"{mFileName}.LS");
+      using StreamWriter lsSW = new ($"{mFileName}.LS"); // Main LS output
 
       // Write Header to LS file
       lsSW.WriteLine ($"/ PROG  {mFileName}");
-      for (string? header = refSR.ReadLine (); header != null && !header.StartsWith ("[1]"); header = refSR.ReadLine ()) {
-         if (header == "" || header.StartsWith ("[0]")) continue;
-         if (header.StartsWith ("COMMENT") || header.StartsWith ("CREATE") || header.StartsWith ("MODIFIED")) {
-            var isFileExist = File.Exists (mFilePath);
+      for (string? header = hrSR.ReadLine (); header != null; header = hrSR.ReadLine ()) {
+         if (header == "") continue;
+         if (header.StartsWith ("COMMENT") /*|| header.StartsWith ("CREATE")*/ || header.StartsWith ("MODIFIED")) {
             var currentTime = DateTime.Now;
             lsSW.WriteLine (header switch { // Still some clarification is needed in setting the time in the output.
+               //var h when h.StartsWith ("CREATE") => $"CREATE\t\t= DATE {currentTime:yy-MM-dd} TIME {currentTime:HH:mm:ss};",
                var h when h.StartsWith ("COMMENT") => $"COMMENT\t\t= \"{currentTime:HH:mm MM/dd}\";",
                var h when h.StartsWith ("MODIFIED") => $"MODIFIED\t= DATE {currentTime:yy-MM-dd} TIME {currentTime:HH:mm:ss};",
                _ => ""
             });
+            continue;
          }
          lsSW.WriteLine (header);
       }
@@ -59,6 +67,7 @@ partial class RobotPostProcessor {
             label = pCount == 1 ? "Init" : crLine[1..^1];
             labels.Add (label);
             string? line = refSR.ReadLine ();
+            if (!string.IsNullOrEmpty (line) && line!.StartsWith ("[1]")) line = refSR.ReadLine ();
             while (!string.IsNullOrEmpty (line) && !line.StartsWith ($"[{pCount + 1}]")) {
                lsSW.WriteLine ($"{lineCount}: {line}");
                line = refSR.ReadLine () ?? "";
@@ -80,18 +89,19 @@ partial class RobotPostProcessor {
 
    // BendSub.LS
    public void GenBendSub () {
+      var isFileExist = File.Exists ($"{mFileName}BendSub.LS");
       using (StreamWriter bendSubSW = new ($"{mFileName}BendSub.LS")) {
          using StreamReader bendSubHCSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.BendSubHC.txt")!);
          for (string? line; (line = bendSubHCSR.ReadLine ()) != null;) { // Header
-            if (line.StartsWith ("COMMENT") || line.StartsWith ("CREATE") || line.StartsWith ("MODIFIED")) {
-               var isFileExist = File.Exists (mFilePath);
+            if (line.StartsWith ("COMMENT") || /*line.StartsWith ("CREATE") ||*/ line.StartsWith ("MODIFIED")) {
                var currentTime = DateTime.Now;
                bendSubSW.WriteLine (line switch { // Still some clarification is needed in setting the time in the output.
-                  var l when l.StartsWith ("CREATE") => isFileExist ? "" : $"CREATE\t= DATE {currentTime:yy-MM-dd} TIME {currentTime:HH:mm:ss};",
+                  //var l when l.StartsWith ("CREATE") => $"CREATE\t= DATE {currentTime:yy-MM-dd} TIME {currentTime:HH:mm:ss};",
                   var l when l.StartsWith ("COMMENT") => $"COMMENT\t\t= \"{currentTime:HH:mm MM/dd}\";",
                   var l when l.StartsWith ("MODIFIED") => $"MODIFIED\t= DATE {currentTime:yy-MM-dd} TIME {currentTime:HH:mm:ss};",
                   _ => ""
                });
+               continue;
             }
             bendSubSW.WriteLine (line);
          }
@@ -107,6 +117,90 @@ partial class RobotPostProcessor {
                  $"J4 = {jPositions[3]} deg, J5 = {jPositions[4]} deg, J6 = {jPositions[5]} deg\n}};\n");
    }
    #endregion
+
+   public void TransferFiles () {
+      WriteLine ("Attempting to transfer files");
+      string[] files = { $"{mFileName}.LS", $"{mFileName}BendSub.LS" };
+      using (var ftpClient = new FtpClient ("192.168.1.175")) {
+         try {
+            WriteLine ("Attempting to connect to FTP server...");
+            //using special commands
+            WriteLine (ftpClient.Execute ("ftp -i 192.168.1.175").ErrorMessage);
+            WriteLine (ftpClient.Execute ("username ").ErrorMessage);
+            WriteLine (ftpClient.Execute ("password ").ErrorMessage);
+
+            // using inbuilt ftpclient commands
+            //ftpClient.Connect ();
+            if (ftpClient.IsConnected) {
+               //WriteLine ("Connected successfully.");
+               foreach (var file in files) {
+                  // using special commands
+                  WriteLine (ftpClient.Execute ("cd md:").ErrorMessage);
+                  WriteLine (ftpClient.Execute ($"mput {file}").ErrorMessage);
+
+                  // using inbuilt ftpclient commands
+                  //FtpStatus status = ftpClient.UploadFile (file, $"/{file}");
+                  //WriteLine ($"Attempting to upload {file} file");
+                  //string msg = status switch {
+                  //   FtpStatus.Success => $"{file} uploaded successfully.",
+                  //   FtpStatus.Skipped => $"{file} was skipped (file might already exist).",
+                  //   FtpStatus.Failed => $"{file} upload failed.",
+                  //   _ => ""
+                  //};
+                  //WriteLine (msg);
+                  Thread.Sleep (500);
+               }
+            }
+         } catch (Exception ex) { WriteLine ($"An error occurred: {ex.Message}"); } finally {
+            if (ftpClient.IsConnected) {
+               WriteLine ("Successfully transferred");
+               //using special commands
+               ftpClient.Execute ("Bye");
+
+               // using inbuilt ftpclient commands
+               //ftpClient.Disconnect ();
+               //WriteLine ("Disconnected from FTP server.");
+            }
+         }
+      }
+   }
+
+   public void TransferFiles1 () {
+      WriteLine ("Attempting to transfer files");
+      string[] files = { $"{mFileName}.LS", $"{mFileName}BendSub.LS" };
+      string ftpAddress = "192.168.1.175";
+      string username = ""; // Empty username
+      string password = ""; // Empty password
+
+      using (var ftpClient = new FtpClient (ftpAddress)) {
+         try {
+            WriteLine ("Attempting to connect to FTP server...");
+            // Set credentials
+            ftpClient.Credentials = new NetworkCredential (username, password);
+            // Connect to the server
+            ftpClient.Connect ();
+            if (ftpClient.IsConnected) {
+               WriteLine ("Connected successfully.");
+               // Change directory to "mdb:"
+               ftpClient.SetWorkingDirectory ("mdb:");
+               foreach (var file in files) {
+                  WriteLine ($"Uploading {file}...");
+                  ftpClient.UploadFile (file, $"mdb:/{Path.GetFileName (file)}");
+                  WriteLine ($"{file} uploaded successfully.");
+                  Thread.Sleep (500);
+               }
+            }
+         } catch (Exception ex) {
+            WriteLine ($"An error occurred: {ex.Message}");
+         } finally {
+            if (ftpClient.IsConnected) {
+               ftpClient.Disconnect ();
+               WriteLine ("Disconnected from FTP server.");
+            }
+         }
+      }
+   }
+
 
    #region Attributes ---------------------------------------------
    [GeneratedRegex (@"G01 J1\s(?<J1>[-+]?\d*\.?\d+) J2\s(?<J2>[-+]?\d*\.?\d+) J3\s(?<J3>[-+]?\d*\.?\d+) J4\s(?<J4>[-+]?\d*\.?\d+) J5\s(?<J5>[-+]?\d*\.?\d+) J6\s(?<J6>[-+]?\d*\.?\d+).*", RegexOptions.Compiled)]
