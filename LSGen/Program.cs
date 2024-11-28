@@ -114,7 +114,7 @@ partial class RobotPostProcessor {
       string[] commands = {"echo ftp -i 192.168.1.175", "","cd mdb:",
                            $"mput {mFileName}.LS", $"mput {mFileName}BendSub.LS",
                            "Bye"};
-      string combinedCmds = String.Join ("&&", commands);
+      string combinedCmds = String.Join (" && ", commands);
 
       Process proc = new ();
       ProcessStartInfo info = new () {
