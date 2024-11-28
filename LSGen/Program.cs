@@ -1,6 +1,9 @@
 ﻿using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System;
 
 if (args.Length == 0) { Console.WriteLine ("No input!"); Console.ReadKey (); return; }
 RobotPostProcessor rpp = new (args[0]);
@@ -105,6 +108,39 @@ partial class RobotPostProcessor {
                  $"UF : {(pCount < 9 ? 1 : pCount < 20 ? 2 : 3)}, UT : 2,\n" +
                  $"J1 = {jPositions[0]} deg, J2 = {jPositions[1]} deg, J3 = {jPositions[2]} deg,\n" +
                  $"J4 = {jPositions[3]} deg, J5 = {jPositions[4]} deg, J6 = {jPositions[5]} deg\n}};\n");
+   }
+
+   public void FtpTransfer () {
+      string[] commands = {"echo ftp -i 192.168.1.175", "","cd mdb:",
+                           $"mput {mFileName}.LS", $"mput {mFileName}BendSub.LS",
+                           "Bye"};
+      string combinedCmds = String.Join ("&&", commands);
+
+      Process proc = new ();
+      ProcessStartInfo info = new () {
+         FileName = "cmd.exe",
+         Arguments = combinedCmds,
+         RedirectStandardOutput = true,
+         RedirectStandardError = true,
+         UseShellExecute = false,
+         CreateNoWindow = true
+      };
+      proc.StartInfo = info;
+
+      proc.OutputDataReceived += (sender, e) => {
+         if (!string.IsNullOrEmpty (e.Data))
+            Console.WriteLine (e.Data);
+      };
+
+      proc.ErrorDataReceived += (sender, e) => {
+         if (!string.IsNullOrEmpty (e.Data))
+            Console.Error.WriteLine (e.Data);
+      };
+
+      proc.Start ();
+      proc.BeginOutputReadLine ();
+      proc.BeginErrorReadLine ();
+      proc.WaitForExit ();
    }
    #endregion
 
