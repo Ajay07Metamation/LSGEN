@@ -4,15 +4,26 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Net;
+using System.Diagnostics;
+using static System.Net.WebRequestMethods;
+
+
 
 if (args.Length == 0) { WriteLine ("No input!"); ReadKey (); return; }
 RobotPostProcessor rpp = new (args[0]);
 rpp.GenOutFiles ();
 rpp.GenBendSub ();
 WriteLine ("File generated successfully.");
-rpp.TransferFiles ();
+rpp.Transfer ();
 
 ReadKey ();
+
+Process p = new ();
+p.StartInfo.FileName = "cmd.exe";
+string cmd = "ftp - i 192.168.1.175";
+p.StartInfo.Arguments = cmd;
+
+p.Start ();
 
 #region class RobotPostProcessor ----------------------------------------------------------------
 partial class RobotPostProcessor {
@@ -35,7 +46,7 @@ partial class RobotPostProcessor {
       using StreamReader refSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.RoboHC_WOSW.txt")!); // HardCode Reader
       using StreamWriter bendCoordSW = new ($"{mFileName}RamPoints.txt"); // Collection of ram offsets. To be sent to RA.
       using StreamReader rbcSR = new (mFilePath);
-      var isFileExist = File.Exists ($"{mFileName}.LS");
+      var isFileExist = System.IO.File.Exists ($"{mFileName}.LS");
       using StreamWriter lsSW = new ($"{mFileName}.LS"); // Main LS output
 
       // Write Header to LS file
@@ -89,7 +100,7 @@ partial class RobotPostProcessor {
 
    // BendSub.LS
    public void GenBendSub () {
-      var isFileExist = File.Exists ($"{mFileName}BendSub.LS");
+      var isFileExist = System.IO.File.Exists ($"{mFileName}BendSub.LS");
       using (StreamWriter bendSubSW = new ($"{mFileName}BendSub.LS")) {
          using StreamReader bendSubHCSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.BendSubHC.txt")!);
          for (string? line; (line = bendSubHCSR.ReadLine ()) != null;) { // Header
@@ -118,89 +129,93 @@ partial class RobotPostProcessor {
    }
    #endregion
 
-   public void TransferFiles () {
-      WriteLine ("Attempting to transfer files");
-      string[] files = { $"{mFileName}.LS", $"{mFileName}BendSub.LS" };
-      using (var ftpClient = new FtpClient ("192.168.1.175")) {
-         try {
-            WriteLine ("Attempting to connect to FTP server...");
-            //using special commands
-            WriteLine (ftpClient.Execute ("ftp -i 192.168.1.175").ErrorMessage);
-            WriteLine (ftpClient.Execute ("username ").ErrorMessage);
-            WriteLine (ftpClient.Execute ("password ").ErrorMessage);
+   //public void TransferFiles () {
+   //   WriteLine ("Attempting to transfer files");
+   //   string[] files = { $"{mFileName}.LS", $"{mFileName}BendSub.LS" };
+   //   using (var ftpClient = new FtpClient ("192.168.1.175")) {
+   //      try {
+   //         WriteLine ("Attempting to connect to FTP server...");
+   //         //using special commands
+   //         WriteLine (ftpClient.Execute ("ftp -i 192.168.1.175").ErrorMessage);
+   //         WriteLine (ftpClient.Execute ("username ").ErrorMessage);
+   //         WriteLine (ftpClient.Execute ("password ").ErrorMessage);
 
-            // using inbuilt ftpclient commands
-            //ftpClient.Connect ();
-            if (ftpClient.IsConnected) {
-               //WriteLine ("Connected successfully.");
-               foreach (var file in files) {
-                  // using special commands
-                  WriteLine (ftpClient.Execute ("cd md:").ErrorMessage);
-                  WriteLine (ftpClient.Execute ($"mput {file}").ErrorMessage);
+   //         // using inbuilt ftpclient commands
+   //         //ftpClient.Connect ();
+   //         if (ftpClient.IsConnected) {
+   //            //WriteLine ("Connected successfully.");
+   //            foreach (var file in files) {
+   //               // using special commands
+   //               WriteLine (ftpClient.Execute ("cd md:").ErrorMessage);
+   //               WriteLine (ftpClient.Execute ($"mput {file}").ErrorMessage);
 
-                  // using inbuilt ftpclient commands
-                  //FtpStatus status = ftpClient.UploadFile (file, $"/{file}");
-                  //WriteLine ($"Attempting to upload {file} file");
-                  //string msg = status switch {
-                  //   FtpStatus.Success => $"{file} uploaded successfully.",
-                  //   FtpStatus.Skipped => $"{file} was skipped (file might already exist).",
-                  //   FtpStatus.Failed => $"{file} upload failed.",
-                  //   _ => ""
-                  //};
-                  //WriteLine (msg);
-                  Thread.Sleep (500);
-               }
-            }
-         } catch (Exception ex) { WriteLine ($"An error occurred: {ex.Message}"); } finally {
-            if (ftpClient.IsConnected) {
-               WriteLine ("Successfully transferred");
-               //using special commands
-               ftpClient.Execute ("Bye");
+   //               // using inbuilt ftpclient commands
+   //               //FtpStatus status = ftpClient.UploadFile (file, $"/{file}");
+   //               //WriteLine ($"Attempting to upload {file} file");
+   //               //string msg = status switch {
+   //               //   FtpStatus.Success => $"{file} uploaded successfully.",
+   //               //   FtpStatus.Skipped => $"{file} was skipped (file might already exist).",
+   //               //   FtpStatus.Failed => $"{file} upload failed.",
+   //               //   _ => ""
+   //               //};
+   //               //WriteLine (msg);
+   //               Thread.Sleep (500);
+   //            }
+   //         }
+   //      } catch (Exception ex) { WriteLine ($"An error occurred: {ex.Message}"); } finally {
+   //         if (ftpClient.IsConnected) {
+   //            WriteLine ("Successfully transferred");
+   //            //using special commands
+   //            ftpClient.Execute ("Bye");
 
-               // using inbuilt ftpclient commands
-               //ftpClient.Disconnect ();
-               //WriteLine ("Disconnected from FTP server.");
-            }
-         }
-      }
+   //            // using inbuilt ftpclient commands
+   //            //ftpClient.Disconnect ();
+   //            //WriteLine ("Disconnected from FTP server.");
+   //         }
+   //      }
+   //   }
+   //}
+
+   //public void TransferFiles1 () {
+   //   WriteLine ("Attempting to transfer files");
+   //   string[] files = { $"{mFileName}.LS", $"{mFileName}BendSub.LS" };
+   //   string ftpAddress = "192.168.1.175";
+   //   string username = ""; // Empty username
+   //   string password = ""; // Empty password
+
+   //   using (var ftpClient = new FtpClient (ftpAddress)) {
+   //      try {
+   //         WriteLine ("Attempting to connect to FTP server...");
+   //         // Set credentials
+   //         ftpClient.Credentials = new NetworkCredential (username, password);
+   //         // Connect to the server
+   //         ftpClient.Connect ();
+   //         if (ftpClient.IsConnected) {
+   //            WriteLine ("Connected successfully.");
+   //            // Change directory to "mdb:"
+   //            ftpClient.SetWorkingDirectory ("mdb:");
+   //            foreach (var file in files) {
+   //               WriteLine ($"Uploading {file}...");
+   //               ftpClient.UploadFile (file, $"mdb:/{Path.GetFileName (file)}");
+   //               WriteLine ($"{file} uploaded successfully.");
+   //               Thread.Sleep (500);
+   //            }
+   //         }
+   //      } catch (Exception ex) {
+   //         WriteLine ($"An error occurred: {ex.Message}");
+   //      } finally {
+   //         if (ftpClient.IsConnected) {
+   //            ftpClient.Disconnect ();
+   //            WriteLine ("Disconnected from FTP server.");
+   //         }
+   //      }
+   //   }
+   //}
+
+   public void Transfer () {
+      Process process = new ();
+      process.Start ();
    }
-
-   public void TransferFiles1 () {
-      WriteLine ("Attempting to transfer files");
-      string[] files = { $"{mFileName}.LS", $"{mFileName}BendSub.LS" };
-      string ftpAddress = "192.168.1.175";
-      string username = ""; // Empty username
-      string password = ""; // Empty password
-
-      using (var ftpClient = new FtpClient (ftpAddress)) {
-         try {
-            WriteLine ("Attempting to connect to FTP server...");
-            // Set credentials
-            ftpClient.Credentials = new NetworkCredential (username, password);
-            // Connect to the server
-            ftpClient.Connect ();
-            if (ftpClient.IsConnected) {
-               WriteLine ("Connected successfully.");
-               // Change directory to "mdb:"
-               ftpClient.SetWorkingDirectory ("mdb:");
-               foreach (var file in files) {
-                  WriteLine ($"Uploading {file}...");
-                  ftpClient.UploadFile (file, $"mdb:/{Path.GetFileName (file)}");
-                  WriteLine ($"{file} uploaded successfully.");
-                  Thread.Sleep (500);
-               }
-            }
-         } catch (Exception ex) {
-            WriteLine ($"An error occurred: {ex.Message}");
-         } finally {
-            if (ftpClient.IsConnected) {
-               ftpClient.Disconnect ();
-               WriteLine ("Disconnected from FTP server.");
-            }
-         }
-      }
-   }
-
 
    #region Attributes ---------------------------------------------
    [GeneratedRegex (@"G01 J1\s(?<J1>[-+]?\d*\.?\d+) J2\s(?<J2>[-+]?\d*\.?\d+) J3\s(?<J3>[-+]?\d*\.?\d+) J4\s(?<J4>[-+]?\d*\.?\d+) J5\s(?<J5>[-+]?\d*\.?\d+) J6\s(?<J6>[-+]?\d*\.?\d+).*", RegexOptions.Compiled)]
