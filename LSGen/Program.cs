@@ -10,7 +10,8 @@ RobotPostProcessor rpp = new (args[0]);
 rpp.GenOutFiles ();
 rpp.GenBendSub ();
 Console.WriteLine ("File generated successfully.");
-Console.ReadKey ();
+//Console.ReadKey ();
+rpp.FtpTransfer ();
 
 #region class RobotPostProcessor ----------------------------------------------------------------
 partial class RobotPostProcessor {
@@ -111,7 +112,7 @@ partial class RobotPostProcessor {
    }
 
    public void FtpTransfer () {
-      string[] commands = {"echo ftp -i 192.168.1.175", "","cd mdb:",
+      string[] commands = {"/K ftp -i 192.168.1.175", "/K","cd mdb:",
                            $"mput {mFileName}.LS", $"mput {mFileName}BendSub.LS",
                            "Bye"};
       string combinedCmds = String.Join (" && ", commands);
@@ -119,28 +120,32 @@ partial class RobotPostProcessor {
       Process proc = new ();
       ProcessStartInfo info = new () {
          FileName = "cmd.exe",
-         Arguments = combinedCmds,
-         RedirectStandardOutput = true,
-         RedirectStandardError = true,
-         UseShellExecute = false,
-         CreateNoWindow = true
+         Arguments = "echo Hi > Hi.txt",
+         //RedirectStandardOutput = true,
+         //RedirectStandardError = true,
+         UseShellExecute = true,
+         CreateNoWindow = false
       };
       proc.StartInfo = info;
 
       proc.OutputDataReceived += (sender, e) => {
-         if (!string.IsNullOrEmpty (e.Data))
+         if (!string.IsNullOrEmpty (e.Data)) {
             Console.WriteLine (e.Data);
+         }
+         Console.ReadKey ();
       };
 
       proc.ErrorDataReceived += (sender, e) => {
-         if (!string.IsNullOrEmpty (e.Data))
+         if (!string.IsNullOrEmpty (e.Data)) {
             Console.Error.WriteLine (e.Data);
+         }
+         Console.ReadKey ();
       };
 
       proc.Start ();
-      proc.BeginOutputReadLine ();
-      proc.BeginErrorReadLine ();
-      proc.WaitForExit ();
+      //proc.BeginOutputReadLine ();
+      //proc.BeginErrorReadLine ();
+      //proc.WaitForExit ();
    }
    #endregion
 
