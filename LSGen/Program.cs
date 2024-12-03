@@ -82,7 +82,6 @@ partial class RobotPostProcessor {
    public void GenBendSub () {
       using (StreamWriter bendSubSW = new ($"{mFileName}BendSub.LS")) {
          using StreamReader bendSubHCSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.BendSubHC.txt")!);
-         bendSubSW.WriteLine ($"/ PROG  {mFileName}BendSub");
          for (string? line; (line = bendSubHCSR.ReadLine ()) != null;) { // Header
             if (line.StartsWith ("COMMENT") || line.StartsWith ("CREATE") || line.StartsWith ("MODIFIED")) {
                var isFileExist = File.Exists (mFilePath);
@@ -97,12 +96,13 @@ partial class RobotPostProcessor {
             bendSubSW.WriteLine (line);
          }
          bendSubSW.Write (mBendSubPoints.ToString ());
+         bendSubSW.WriteLine ("/END");
       }
    }
 
    // Writes the positions to the required string builder. 
    void WriteToSB (StringBuilder sb, string[] jPositions, int pCount, List<string>? labels = null) {
-      sb.Append ($"P[{pCount}:{(labels != null ? $"{labels[pCount - 1]}" : "")}]{{\nGP1:\n" +
+      sb.Append ($"P[{pCount}:{(labels != null ? $"{labels[pCount - 1]}" : "\"\"")}]{{\nGP1:\n" +
                  $"UF : {(pCount < 9 ? 1 : pCount < 20 ? 2 : 3)}, UT : 2,\n" +
                  $"J1 = {jPositions[0]} deg, J2 = {jPositions[1]} deg, J3 = {jPositions[2]} deg,\n" +
                  $"J4 = {jPositions[3]} deg, J5 = {jPositions[4]} deg, J6 = {jPositions[5]} deg\n}};\n");
