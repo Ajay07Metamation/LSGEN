@@ -82,6 +82,7 @@ partial class RobotPostProcessor {
    public void GenBendSub () {
       using (StreamWriter bendSubSW = new ($"{mFileName}BendSub.LS")) {
          using StreamReader bendSubHCSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.BendSubHC.txt")!);
+         bendSubSW.WriteLine ($"/ PROG  {mFileName}BendSub");
          for (string? line; (line = bendSubHCSR.ReadLine ()) != null;) { // Header
             if (line.StartsWith ("COMMENT") || line.StartsWith ("CREATE") || line.StartsWith ("MODIFIED")) {
                var isFileExist = File.Exists (mFilePath);
