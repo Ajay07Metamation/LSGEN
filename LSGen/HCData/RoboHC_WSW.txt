@@ -28,18 +28,20 @@ LINE_TRACK;
 
 /MN
 [1]
-  !,Program to pick a part ;
-  DO[500:GRIP_OPEN]=ON;
-  DO[499:GRIP_CLOSE]=OFF;
-  DO[506:SUCTION_ON]=ON;
-  DO[5:START_PROGRAM]=ON ;
-  UFRAME_NUM=1 ;
-  UTOOL_NUM=2 ;
-  R[15]=20;
-  R[16]=800;
+   !,Program to pick a part ;
+   LBL[100]; 
+   DO[500:GRIP_OPEN]=ON; 
+   DO[499:GRIP_CLOSE]=OFF; 
+   R[28]=1; 
+   DO[5:START_PROGRAM]=ON ; 
+   UFRAME_NUM=1 ; 
+   UTOOL_NUM=2 ; 
+   R[15]=50; 
+   R[16]=300; 
 [2]
 [3]
    //WAIT (DI[13:GRIPPER_OPEN_FB])    ;
+   WAIT   1.50(sec) ;
 [4]
 [5]
 [6]
@@ -47,11 +49,13 @@ LINE_TRACK;
   DO[499:GRIP_CLOSE]=ON;
   WAIT 0.25(sec);
   //WAIT (DI[14:GRIPPER_CLOSE_FB])    ;
+  R[28]=2;
 [7]
 [8]
 [9]
   UFRAME_NUM=2 ;
 [10]
+  R[28]=1;
   R[10]=1    ;
   LBL[1] ;
   SELECT R[10]=1,JMP LBL[2] ;
@@ -98,18 +102,20 @@ LINE_TRACK;
 [13]
 [14]
 [15]
-  PR[60]=P[14];
-  CALL Bg_al;
+  PR[62]=P[13];
+  PR[60]=LPOS;
+  ;
   ELSE ;
   WAIT (!DI[5:RAM_MOVING])    ;
   JMP LBL[11] ;
   ENDIF ;
-  WAIT (DI[12:FPDOWN])    ;
+  //WAIT (DI[12:FPDOWN])    ;
   DO[8:ROBOUNSAFE]=OFF ;
   DO[6:ENABLE_RAM_DOWN]=ON ;
   WAIT (DI[10:BELOW_MUTE_POINT])    ;
-  JMP LBL[5] ;
-   ;
+  CALL Bg_al_1;
+  ;
+  JMP LBL[5] ;				   
   LBL[5:CLAMPING] ;
   DO[1:CLAMPING_POINT_BIT]=ON ;
   WAIT (DI[6:CLAMPING_POINT])    ;
@@ -119,9 +125,13 @@ LINE_TRACK;
    ;
   LBL[6:MOVETOLDP] ;
   DO[6:ENABLE_RAM_DOWN]=OFF ;
-  CALL BEND_sub ;
+  CALL BEND_sub_2 ;
+   DO[1:CLAMPING_POINT_BIT]=OFF ;
+   DO[3:MOVE_TO_UDP]=ON ;
+   WAIT (DI[9:UDP_REACHED])    ;
+   DO[3:MOVE_TO_UDP]=OFF ;
 [18]
-  WAIT (DI[8:EoD_REACHED])    ;
+  //WAIT (DI[8:EoD_REACHED])    ;
   DO[2:MOVE_TO_LDP]=OFF ;
 [19]
 [20]
@@ -140,9 +150,6 @@ LINE_TRACK;
   JMP LBL[3] ;
    ;
   LBL[8:TODEPOSIT] ;
-  DO[4:STEP_CHANGE]=OFF ;
-  DO[3:MOVE_TO_UDP]=ON ;
-  WAIT (DI[9:UDP_REACHED])    ;
 [22]
   DO[500:GRIP_OPEN]=ON;
   DO[499:GRIP_CLOSE]=OFF;
