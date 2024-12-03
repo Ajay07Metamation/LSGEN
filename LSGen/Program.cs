@@ -63,22 +63,24 @@ partial class RobotPostProcessor {
          if (crLine == "" || i < 8) continue;
          if (crLine == "Bend 0") { isBendPos = true; pCount = 0; continue; }
          if (crLine.StartsWith ('(')) {
-            pCount++;
-            label = pCount == 1 ? "Init" : crLine[1..^1];
-            labels.Add (label);
-            string? line = refSR.ReadLine ();
-            if (!string.IsNullOrEmpty (line) && line!.StartsWith ("[1]")) line = refSR.ReadLine ();
-            while (!string.IsNullOrEmpty (line) && !line.StartsWith ($"[{pCount + 1}]")) {
-               lsSW.WriteLine ($"{lineCount}: {line}");
-               line = refSR.ReadLine () ?? "";
-               lineCount++;
+            if (rbcSR.Peek () != '(') {
+               pCount++;
+               label = pCount == 1 ? "Init" : crLine[1..^1];
+               labels.Add (label);
+               string? line = refSR.ReadLine ();
+               if (!string.IsNullOrEmpty (line) && line!.StartsWith ("[1]")) line = refSR.ReadLine ();
+               while (!string.IsNullOrEmpty (line) && !line.StartsWith ($"[{pCount + 1}]")) {
+                  lsSW.WriteLine ($"{lineCount}: {line}");
+                  line = refSR.ReadLine () ?? "";
+                  lineCount++;
+               }
             }
          } else if (crLine.StartsWith ("G01") && pattern.Match (crLine) is { Success: true } match) {
             string[] points = sJointsTags.Select (j => double.Parse (match.Groups[j].Value).ToString ("F2")).ToArray ();
             if (isBendPos) WriteToSB (mBendSubPoints, points, ++pCount);
             else {
                var motion = crLine.Contains ("Forward") ? 'J' : 'L';
-               lsSW.WriteLine ($" {lineCount++}:  {motion} P[{pCount}: J_{label}] 100% FINE;");
+               lsSW.WriteLine ($" {lineCount++}:  {motion} P[{pCount}: J_{label}] {(motion == 'J' ? "R[15] %" : "R[16] mm/sec")} FINE;");
                WriteToSB (pointCollection, points, pCount, labels);
             }
          }
@@ -111,7 +113,7 @@ partial class RobotPostProcessor {
 
    // Writes the positions to the required string builder. 
    void WriteToSB (StringBuilder sb, string[] jPositions, int pCount, List<string>? labels = null) {
-      sb.Append ($"P[{pCount}:{(labels != null ? $"{labels[pCount - 1]}" : "")}]{{\nGP1:\n" +
+      sb.Append ($"P[{pCount}:{(labels != null ? $"\"{labels[pCount - 1]}\"" : "")}]{{\nGP1:\n" +
                  $"UF : {(pCount < 9 ? 1 : pCount < 20 ? 2 : 3)}, UT : 2,\n" +
                  $"J1 = {jPositions[0]} deg, J2 = {jPositions[1]} deg, J3 = {jPositions[2]} deg,\n" +
                  $"J4 = {jPositions[3]} deg, J5 = {jPositions[4]} deg, J6 = {jPositions[5]} deg\n}};\n");
