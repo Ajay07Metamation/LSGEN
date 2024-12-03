@@ -9,14 +9,22 @@
 
   <ItemGroup>
     <None Remove="HCData\BendSubHC.txt" />
+    <None Remove="HCData\HeaderHC.txt" />
     <None Remove="HCData\RoboHC_WOSW.txt" />
     <None Remove="HCData\RoboHC_WSW.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="HCData\BendSubHC.txt" />
+    <EmbeddedResource Include="HCData\HeaderHC.txt">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="HCData\RoboHC_WOSW.txt" />
     <EmbeddedResource Include="HCData\RoboHC_WSW.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentFTP" Version="51.1.0" />
   </ItemGroup>
 
 </Project>
