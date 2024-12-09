@@ -1,259 +1,133 @@
 [1]
   !,Program to pick a part ;
   LBL[100] ;
-  DO[505]=ON;  
+  DO[505:VAC_GRIP_ON]=ON ;
   DO[5:START_PROGRAM]=ON ;
   UFRAME_NUM=1 ;
   UTOOL_NUM=2 ;
   R[15:SPD_J]=50    ;
   R[16:SPD_L]=300    ;
+J P[23] 100% CNT100    ;
 [2]
-[3]
+  PR[70]=P[3:Contact]    ;
+  PR[70,3]=PR[70,3]+100    ;
+  PR[70,6]=PR[70,6]-3    ;
+   ;
+  CALL STACK_SEARCH    ;
+[3]//L P[3:Contact] R[16:SPD_L]mm/sec FINE    ;
 [4]
-  DO[505]=OFF;
 [5]
 [6]
+  //UFRAME_NUM=2 ;
+  R[10]=1    ;
+  LBL[1] ;
+  SELECT R[10]=1,JMP LBL[2] ;
+         =2,JMP LBL[3] ;
+         =3,JMP LBL[4] ;
+         =4,JMP LBL[5] ;
+         =5,JMP LBL[6] ;
+         =6,JMP LBL[7] ;
+         =7,JMP LBL[8] ;
+         ELSE,JMP LBL[1] ;
+   ;
+  LBL[2:INIT] ;
+  IF (DO[3:MOVE_TO_UDP] OR DI[3:FIRST_BEND_ACTIVE] AND !DI[9:UDP_REACHED]) THEN ;
+  R[10]=2    ;
+   ;
+  ENDIF ;
+  IF (DI[1:NC_START] AND DI[11:PRESS_OK]) THEN ;
+  R[10]=3    ;
+  JMP LBL[1] ;
+  ELSE ;
+  JMP LBL[1] ;
+  ENDIF ;
+   ;
+  LBL[3:RAMUP] ;
+  DO[3:MOVE_TO_UDP]=ON ;
+  WAIT (DI[9:UDP_REACHED])    ;
+  DO[3:MOVE_TO_UDP]=OFF ;
+  R[10]=3    ;
+  JMP LBL[1] ;
+   ;
+  LBL[4:FASTCLOSING] ;
+  IF (DI[3:FIRST_BEND_ACTIVE] OR DI[4:LAST_BEND_ACTIVE] AND DI[9:UDP_REACHED]) THEN ;
+  DO[4:STEP_CHANGE]=ON ;
+  WAIT (DI[2:BACKGAUGE_IN_POSITION])    ;
+  //DO[4:STEP_CHANGE]=OFF ;
+  ELSE ;
+  JMP LBL[1] ;
+  ENDIF ;
+  DO[8:ROBOUNSAFE]=ON ;
+  LBL[11] ;
+  IF (!DI[5:RAM_MOVING]) THEN ;
 [7]
- UFRAME_NUM=2 ;
-	  R[10]=1    ;				
-   LBL[1] ;
-   SELECT R[10]=1,JMP LBL[2] ;
-            =2,JMP LBL[3] ;
-             =3,JMP LBL[4] ;
-             =4,JMP LBL[5] ;
-             =5,JMP LBL[6] ;
-             =6,JMP LBL[7] ;
-             =7,JMP LBL[8] ;
-             ELSE,JMP LBL[1] ;
-    ;
-   LBL[2:INIT] ;
-   IF (DO[3:MOVE_TO_UDP] OR DI[3:FIRST_BEND_ACTIVE] AND !DI[9:UDP_REACHED]) THEN ;
-   R[10]=2    ;
-    ;
-   ENDIF ;
-   IF (DI[1:NC_START] AND DI[11:PRESS_OK]) THEN ;
-   R[10]=3    ;
-   JMP LBL[1] ;
-   ELSE ;
-   JMP LBL[1] ;
-   ENDIF ;
-    ;
-   LBL[3:RAMUP] ;
-   DO[3:MOVE_TO_UDP]=ON ;
-   WAIT (DI[9:UDP_REACHED])    ;
-   DO[3:MOVE_TO_UDP]=OFF ;
-   R[10]=3    ;
-   JMP LBL[1] ;
-    ;
-   LBL[4:FASTCLOSING] ;
-   IF (DI[3:FIRST_BEND_ACTIVE] OR DI[4:LAST_BEND_ACTIVE] AND DI[9:UDP_REACHED]) THEN ;
-   DO[4:STEP_CHANGE]=ON ;
-   WAIT (DI[2:BACKGAUGE_IN_POSITION])    ;
-   //DO[4:STEP_CHANGE]=OFF ;
-   ELSE ;
-   JMP LBL[1] ;
-   ENDIF ;
-   DO[8:ROBOUNSAFE]=ON ;
-   LBL[11] ;
-   IF (!DI[5:RAM_MOVING]) THEN ;
-[8] 
-[9] 
-[10]
-[11]//L P[10:Pinch Point] R[16:SPD_L]mm/sec FINE    ;
-  PR[62]=P[9]    ;
+[8]
+  UFRAME_NUM=2 ;
+[9]
+[10]  //L P[10:Pinch Point] R[16:SPD_L]mm/sec FINE    ;
+  PR[62]=P[9:Mute Point]    ;
   PR[60:LPOS_MUT]=LPOS    ;
    ;
-     ELSE ;
-    WAIT (!DI[5:RAM_MOVING])    ;
-     JMP LBL[11] ;
-     ENDIF ;
-   //WAIT (DI[12:FPDOWN])    ;
-     DO[8:ROBOUNSAFE]=OFF ;
-     DO[6:ENABLE_RAM_DOWN]=ON ;
-     WAIT (DI[10:BELOW_MUTE_POINT])    ;
-     CALL BG_AL_1    ;
-         ;
-     JMP LBL[5] ;
-     LBL[5:CLAMPING] ;
-     DO[1:CLAMPING_POINT_BIT]=ON ;
-     WAIT (DI[6:CLAMPING_POINT])    ;
-          ;
-     JMP LBL[6] ;
-         ;
-     LBL[6:MOVETOLDP] ;
-     DO[6:ENABLE_RAM_DOWN]=OFF ;
-     CALL BEND_SUB_2    ;
-     DO[4:STEP_CHANGE]=OFF ;
-     DO[1:CLAMPING_POINT_BIT]=OFF ;
-     DO[3:MOVE_TO_UDP]=ON ;
-     WAIT (DI[9:UDP_REACHED])    ;
-     DO[3:MOVE_TO_UDP]=OFF ;
-[12]
-[13]
-[14]
-     //WAIT (DI[8:EoD_REACHED])    ;
-     DO[2:MOVE_TO_LDP]=OFF ;
- 		UFRAME_NUM=3 ;
- 		  IF (DI[4:LAST_BEND_ACTIVE]) THEN ;
-           JMP LBL[8] ;
-           ELSE ;
-           JMP LBL[7] ;
-           ENDIF ;
-            ;
-           LBL[7:NEXTBEND] ;
-           DO[4:STEP_CHANGE]=OFF ;
-           DO[3:MOVE_TO_UDP]=ON ;
-           WAIT (DI[9:UDP_REACHED])    ;
-           JMP LBL[3] ;
- 			;
- 		LBL[8:TODEPOSIT] ;
- 		L P[18:Drop Approach] R[16:SPD_L]mm/sec FINE    ;
- 		R[15:SPD_J]=100    ;
-         L P[19:Retreat] R[16:SPD_L]mm/sec FINE    ;
- 		J P[20:Retreat.2] R[15:SPD_J]% FINE    ;
- 		J P[21:Drop Retreat3] R[15:SPD_J]% FINE    ;
-   R[10]=1    ;
-     JMP LBL[9] ;
-     LBL[9] ;
-     DO[1:CLAMPING_POINT_BIT]=OFF ;
-     DO[2:MOVE_TO_LDP]=OFF ;
-     DO[3:MOVE_TO_UDP]=OFF ;
-     DO[4:STEP_CHANGE]=OFF ;
-     DO[6:ENABLE_RAM_DOWN]=OFF ;
-     DO[5:START_PROGRAM]=OFF ;
-[15] 
-   JMP LBL[100];
+  ELSE ;
+  WAIT (!DI[5:RAM_MOVING])    ;
+  JMP LBL[11] ;
+  ENDIF ;
+  //WAIT (DI[12:FPDOWN])    ;
+  DO[8:ROBOUNSAFE]=OFF ;
+  DO[6:ENABLE_RAM_DOWN]=ON ;
+  WAIT (DI[10:BELOW_MUTE_POINT])    ;
+  CALL BG_AL_1    ;
+   ;
+  JMP LBL[5] ;
+  LBL[5:CLAMPING] ;
+  DO[1:CLAMPING_POINT_BIT]=ON ;
+  WAIT (DI[6:CLAMPING_POINT])    ;
+   ;
+  JMP LBL[6] ;
+   ;
+  LBL[6:MOVETOLDP] ;
+  DO[6:ENABLE_RAM_DOWN]=OFF ;
+  PR[73]=P[13:Over Bending]    ;
+  CALL BENDSUB_VAC    ;
+  DO[4:STEP_CHANGE]=OFF ;
+  DO[1:CLAMPING_POINT_BIT]=OFF ;
+  DO[3:MOVE_TO_UDP]=ON ;
+  WAIT (DI[9:UDP_REACHED])    ;
+  DO[3:MOVE_TO_UDP]=OFF ;
+[15]
+[16]
+[17]
+  //WAIT (DI[8:EoD_REACHED])    ;
+  DO[2:MOVE_TO_LDP]=OFF ;
+  //UFRAME_NUM=3 ;
+  IF (DI[4:LAST_BEND_ACTIVE]) THEN ;
+  JMP LBL[8] ;
+  ELSE ;
+  JMP LBL[7] ;
+  ENDIF ;
+   ;
+  LBL[7:NEXTBEND] ;
+  DO[4:STEP_CHANGE]=OFF ;
+  DO[3:MOVE_TO_UDP]=ON ;
+  WAIT (DI[9:UDP_REACHED])    ;
+  JMP LBL[3] ;
+   ;
+  LBL[8:TODEPOSIT] ;
+[18]
+  DO[505:VAC_GRIP_ON]=ON ;
+  R[15:SPD_J]=100    ;
+[19]
+[20]
+[21]
+  R[10]=1    ;
+  JMP LBL[9] ;
+  LBL[9] ;
+  DO[1:CLAMPING_POINT_BIT]=OFF ;
+  DO[2:MOVE_TO_LDP]=OFF ;
+  DO[3:MOVE_TO_UDP]=OFF ;
+  DO[4:STEP_CHANGE]=OFF ;
+  DO[6:ENABLE_RAM_DOWN]=OFF ;
+  DO[5:START_PROGRAM]=OFF ;
+[22]
+  JMP LBL[100] ;
 /POS
-P[1:"Init"]{
-   GP1:
-	UF : 1, UT : 2,	
-	J1=    90.000 deg,	J2=     0.000 deg,	J3=   -20.000 deg,
-	J4=     0.000 deg,	J5=    20.000 deg,	J6=     0.000 deg
-};
-P[2:"Approach"]{
-   GP1:
-	UF : 1, UT : 2,	
-	J1=   163.828 deg,	J2=    -7.671 deg,	J3=   -22.564 deg,
-	J4=    13.758 deg,	J5=   -54.430 deg,	J6=  -169.819 deg
-};
-P[3:"Contact"]{
-   GP1:
-	UF : 1, UT : 2,	
-	J1=   163.828 deg,	J2=     4.694 deg,	J3=   -51.378 deg,
-	J4=    25.157 deg,	J5=   -27.069 deg,	J6=  -184.408 deg
-};
-P[4:"Separate"]{
-   GP1:
-	UF : 1, UT : 2,	
-	J1=   163.828 deg,	J2=    -7.671 deg,	J3=   -22.564 deg,
-	J4=    13.758 deg,	J5=   -54.430 deg,	J6=  -169.819 deg
-};
-P[5:"Lift Clear"]{
-   GP1:
-	UF : 1, UT : 2,	
-	J1=   162.530 deg,	J2=    -1.300 deg,	J3=     2.410 deg,
-	J4=     0.000 deg,	J5=   -92.410 deg,	J6=  -162.530 deg
-};
-P[6:"Aloft"]{
-   GP1:
-	UF : 1, UT : 2,	
-	J1=    90.000 deg,	J2=     0.000 deg,	J3=   -20.000 deg,
-	J4=    -2.000 deg,	J5=   -20.000 deg,	J6=   -64.550 deg
-};
-P[7:"Insert Part"]{
-   GP1:
-	UF : 1, UT : 2,	
-	J1=    58.470 deg,	J2=    15.360 deg,	J3=   -44.930 deg,
-	J4=   180.000 deg,	J5=  -134.930 deg,	J6=  -121.530 deg
-};
-P[8:"Part Insert2"]{
-   GP1:
-	UF : 1, UT : 2,	
-	J1=    46.780 deg,	J2=    26.380 deg,	J3=   -40.810 deg,
-	J4=   180.000 deg,	J5=  -130.810 deg,	J6=  -133.220 deg
-};
-P[9:"Mute Point"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=    46.780 deg,	J2=    27.680 deg,	J3=   -43.040 deg,
-	J4=   180.000 deg,	J5=  -133.040 deg,	J6=  -133.220 deg
-};
-P[10:"Pinch Point"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=    46.520 deg,	J2=    28.010 deg,	J3=   -42.880 deg,
-	J4=   180.000 deg,	J5=  -132.880 deg,	J6=  -133.480 deg
-};
-P[11:"Retract Gauges"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=    46.520 deg,	J2=    28.010 deg,	J3=   -42.880 deg,
-	J4=   180.000 deg,	J5=  -132.880 deg,	J6=  -133.480 deg
-};
-P[12:"Bending"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=    52.230 deg,	J2=    15.560 deg,	J3=   -32.990 deg,
-	J4=   146.010 deg,	J5=   -91.250 deg,	J6=  -138.460 deg
-};
-P[13:"Over Bending"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=    52.290 deg,	J2=    15.370 deg,	J3=   -32.670 deg,
-	J4=   145.340 deg,	J5=   -90.280 deg,	J6=  -138.240 deg
-};
-P[14:"Decompress"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=    52.230 deg,	J2=    15.560 deg,	J3=   -32.990 deg,
-	J4=   146.010 deg,	J5=   -91.250 deg,	J6=  -138.460 deg
-};
-P[15:"Opening"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=    52.230 deg,	J2=    15.010 deg,	J3=   -31.480 deg,
-	J4=   146.020 deg,	J5=   -90.000 deg,	J6=  -137.610 deg
-};
-P[16:"Post-bend Safe"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=    66.980 deg,	J2=     4.250 deg,	J3=   -33.220 deg,
-	J4=   138.790 deg,	J5=   -98.980 deg,	J6=  -128.790 deg
-};
-P[17:"User1"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=   -58.010 deg,	J2=   -15.750 deg,	J3=   -31.290 deg,
-	J4=   198.790 deg,	J5=   -92.710 deg,	J6=   133.480 deg
-};
-P[18:"Drop Approach"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=   -91.240 deg,	J2=    39.090 deg,	J3=   -63.130 deg,
-	J4=     0.000 deg,	J5=   -26.870 deg,	J6=  -178.760 deg
-};
-P[19:"Retreat"]{
-   GP1:
-	UF : 2, UT : 2,	
-	J1=   -91.240 deg,	J2=    36.500 deg,	J3=   -60.620 deg,
-	J4=     0.000 deg,	J5=   -29.380 deg,	J6=  -178.760 deg
-};
-P[20:"Retreat.2"]{
-   GP1:
-	UF : 3, UT : 2,	
-	J1=   -90.000 deg,	J2=     0.000 deg,	J3=    90.000 deg,
-	J4=     0.000 deg,	J5=   -20.000 deg,	J6=     0.000 deg
-};
-P[21:"Drop Retreat3"]{
-   GP1:
-	UF : 3, UT : 2,	
-	J1=    90.000 deg,	J2=     0.000 deg,	J3=    90.000 deg,
-	J4=     0.000 deg,	J5=   -20.000 deg,	J6=     0.000 deg
-};
-P[22:"Home"]{
-   GP1:
-	UF : 3, UT : 2,	
-	J1=    90.000 deg,	J2=     0.000 deg,	J3=   -20.000 deg,
-	J4=     0.000 deg,	J5=    20.000 deg,	J6=     0.000 deg
-};
-/END
