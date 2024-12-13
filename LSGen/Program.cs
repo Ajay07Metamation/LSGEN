@@ -90,7 +90,7 @@ partial class RobotPostProcessor {
          lsSW.WriteLine ("/POS\n" + pointCollection + "\n/END");
       } else {
          using StreamReader hrSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.HeaderHC.txt")!);
-         using StreamReader refSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.MainProg_VacuumGripHardCode.txt")!); // HardCode Reader
+         using StreamReader refSR = new (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("LSGen.HCData.VacuumGripHC_WOSW.txt")!); // HardCode Reader
          lsSW.WriteLine ($"/ PROG  {mFileName}");
          for (string? header = hrSR.ReadLine (); header != null; header = hrSR.ReadLine ()) {
             if (header == "") continue;
@@ -130,21 +130,36 @@ partial class RobotPostProcessor {
          }
          string? line = refSR.ReadLine ();
          if (!string.IsNullOrEmpty (line) && line!.StartsWith ("[1]")) line = refSR.ReadLine ();
+         int p = 1, cp = 1;
+         char m = 'J';
          for (; ; ) {
             if (!string.IsNullOrEmpty (line) && !line.StartsWith ("[")) {
+               if (line == null) break;
                lsSW.WriteLine ($"{lineCount}: {line}");
+               if (refSR.Peek () is '[' or '/') {
+                  for (int i = p - cp + 1; i <= p; i++)
+                     lsSW.WriteLine ($" {++lineCount}:  {posList[i - 1].motion} P[{i}: J_{labels[i - 1]}] {(m == 'J' ? "R[15] %" : "R[16] mm/sec")} FINE;");
+                  cp = 0;
+               }
                line = refSR.ReadLine () ?? "";
                lineCount++;
             } else {
-               if (line == null) break;
-               var s = int.Parse (line.Split ('[', ']')[1]);
-               var m = posList[s - 1].motion;
-               lsSW.WriteLine ($" {lineCount++}:  {m} P[{s}: J_{label}] {(m == 'J' ? "R[15] %" : "R[16] mm/sec")} FINE;");
-
+               if (string.IsNullOrEmpty (line)) {
+                  for (int i = p - cp + 1; i <= p; i++) // Printing last point
+                     lsSW.WriteLine ($" {lineCount++}:  {posList[i - 1].motion} P[{i}: J_{labels[i - 1]}] {(m == 'J' ? "R[15] %" : "R[16] mm/sec")} FINE;");
+                  cp = 0;
+                  lsSW.WriteLine ($"{lineCount}:  JMP LBL[100] ;");
+                  break;
+               }
+               p = int.Parse (line.Split ('[', ']')[1]);
+               //m = posList[p - 1].motion;
+               //lsSW.WriteLine ($" {lineCount++}:  {m} P[{s}: J_{label}] {(m == 'J' ? "R[15] %" : "R[16] mm/sec")} FINE;");
+               line = refSR.ReadLine ();
+               cp++;
             }
          }
          for (int i = 0; i < posList.Count; i++) WriteToSB (pointCollection, posList[i].points, i + 1, labels);
-         for (int i = 0; i < bPosList.Count; i++) WriteToSB (mBendSubPoints, bPosList[i], i + 1, labels);
+         for (int i = 0; i < bPosList.Count; i++) WriteToSB (mBendSubPoints, bPosList[i], i + 1);
          lsSW.WriteLine ("/POS\n" + pointCollection + "\n/END");
       }
    }
