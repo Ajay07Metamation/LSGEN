@@ -10,8 +10,10 @@
   <ItemGroup>
     <None Remove="HCData\BendSubHC.txt" />
     <None Remove="HCData\HeaderHC.txt" />
+    <None Remove="HCData\MainProg_VacuumGripHardCode.txt" />
     <None Remove="HCData\RoboHC_WOSW.txt" />
     <None Remove="HCData\RoboHC_WSW.txt" />
+    <None Remove="HCData\VacuumGripHC_WOSW.txt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +23,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="HCData\RoboHC_WOSW.txt" />
     <EmbeddedResource Include="HCData\RoboHC_WSW.txt" />
+    <EmbeddedResource Include="HCData\VacuumGripHC_WOSW.txt" />
   </ItemGroup>
 
   <ItemGroup>
